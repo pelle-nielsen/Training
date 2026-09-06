@@ -99,3 +99,27 @@ tests/
 - [ ] Scheduled/automated daily paper trading runs
 - [ ] Track paper-trading performance over time, compare to backtest predictions
 - [ ] (Much later, only if paper trading proves the strategy out) real-money trading, on a Nordnet or other real broker connection, with strict position/loss limits
+
+## Automation (Windows Task Scheduler)
+
+`scripts/run_paper_trade.bat` wraps the daily paper-trade check (activates
+the venv, runs it live, logs output). To run it automatically once a day:
+
+1. Open **Task Scheduler** (search from the Start menu), or run this once
+   in PowerShell to create the task without the GUI:
+
+   ```powershell
+   schtasks /create /tn "Training Paper Trade" /tr "C:\Users\pelle\git\Training\scripts\run_paper_trade.bat" /sc daily /st 22:30
+   ```
+
+   This runs it every day at 22:30 (after US markets close). Adjust `/st`
+   for a different time.
+
+2. Check it worked: `schtasks /query /tn "Training Paper Trade" /v /fo list`
+
+3. To remove it later: `schtasks /delete /tn "Training Paper Trade" /f`
+
+**Keep an eye on it.** Automating even paper trades means it'll keep running
+without you watching every time. Check `data/paper_trade_log.csv` (every
+decision) and `data/scheduled_run.log` (raw output, useful if something
+errors) periodically -- especially for the first couple of weeks.
