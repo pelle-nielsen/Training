@@ -10,11 +10,15 @@ against that (a little -- this is still a simple tool, not a research lab):
      out-of-sample ("test") period.
   2. Sweep parameters on the train period only, rank by a chosen metric.
   3. Report how the top candidates *actually* performed on the test period,
-     which they never got to see while being chosen.
+     which they never got to see while being chosen -- alongside plain
+     buy-and-hold over that same test period, so you can tell whether the
+     strategy is adding anything over just holding the stock.
 
 If a strategy's test-period performance looks a lot worse than its
 train-period performance, that's a real signal it was overfit -- pay
-attention to that gap, not just the train-period number.
+attention to that gap, not just the train-period number. And if it's not
+beating buy-and-hold on the test period, the added complexity (and trading
+costs) may not be worth it.
 """
 
 from __future__ import annotations
@@ -37,11 +41,17 @@ class SweepResult:
     test_sharpe: float
     test_max_drawdown_pct: float
     test_trades: int
+    test_buy_hold_return_pct: float
 
 
 def train_test_split(prices: pd.DataFrame, train_fraction: float = 0.7) -> tuple[pd.DataFrame, pd.DataFrame]:
     split_idx = int(len(prices) * train_fraction)
     return prices.iloc[:split_idx], prices.iloc[split_idx:]
+
+
+def buy_hold_return_pct(prices: pd.DataFrame) -> float:
+    close = prices["Close"]
+    return float((close.iloc[-1] / close.iloc[0] - 1) * 100)
 
 
 def sweep_sma_windows(
@@ -63,6 +73,7 @@ def sweep_sma_windows(
     train, test = train_test_split(prices, train_fraction)
     # Both halves need enough bars for the longest moving average to be meaningful.
     min_bars = max(long_windows) + 5
+    test_buy_hold = buy_hold_return_pct(test)
 
     results: list[SweepResult] = []
     for short in short_windows:
@@ -90,6 +101,7 @@ def sweep_sma_windows(
                     test_sharpe=test_result.sharpe_ratio,
                     test_max_drawdown_pct=test_result.max_drawdown_pct,
                     test_trades=test_result.trades,
+                    test_buy_hold_return_pct=test_buy_hold,
                 )
             )
 

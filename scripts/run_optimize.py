@@ -1,6 +1,7 @@
 """
 Sweep SMA window combinations for a ticker and show train vs. test performance
-side by side, so you can see whether the "best" combo actually generalizes.
+side by side, so you can see whether the "best" combo actually generalizes --
+and whether it beats simply buying and holding.
 
 Usage:
     python scripts/run_optimize.py --ticker AAPL
@@ -38,16 +39,21 @@ def main() -> None:
         print("No valid window combinations for this amount of data -- try a longer --period.")
         return
 
-    print(f"\nTop {min(args.top, len(results))} by train-period Sharpe ratio "
+    test_buy_hold = results[0].test_buy_hold_return_pct
+    print(f"\nBuy-and-hold return over the test period alone: {test_buy_hold:+.2f}%")
+    print(f"Top {min(args.top, len(results))} by train-period Sharpe ratio "
           f"(ranked WITHOUT looking at test data):\n")
-    header = f"{'short':>5} {'long':>5} | {'train ret%':>10} {'train shrp':>10} | {'test ret%':>9} {'test shrp':>9} {'test dd%':>8} {'test trades':>11}"
+    header = (f"{'short':>5} {'long':>5} | {'train ret%':>10} {'train shrp':>10} | "
+              f"{'test ret%':>9} {'test shrp':>9} {'test dd%':>8} {'test trades':>11} {'vs b&h':>8}")
     print(header)
     print("-" * len(header))
     for r in results[: args.top]:
+        vs_bh = r.test_return_pct - r.test_buy_hold_return_pct
         print(
             f"{r.short_window:>5} {r.long_window:>5} | "
             f"{r.train_return_pct:>10.2f} {r.train_sharpe:>10.2f} | "
-            f"{r.test_return_pct:>9.2f} {r.test_sharpe:>9.2f} {r.test_max_drawdown_pct:>8.2f} {r.test_trades:>11}"
+            f"{r.test_return_pct:>9.2f} {r.test_sharpe:>9.2f} {r.test_max_drawdown_pct:>8.2f} "
+            f"{r.test_trades:>11} {vs_bh:>+7.2f}%"
         )
 
     best = results[0]
@@ -59,6 +65,12 @@ def main() -> None:
         print(
             "That's a big drop from train to test -- a warning sign this combo may be "
             "overfit to the train period rather than reflecting a real, repeatable edge."
+        )
+    if best.test_return_pct < test_buy_hold:
+        print(
+            f"Note: it also underperformed plain buy-and-hold on the test period "
+            f"({best.test_return_pct:+.2f}% vs {test_buy_hold:+.2f}%) -- the extra "
+            f"complexity (and trading costs) may not be earning its keep here."
         )
 
 
